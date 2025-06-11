@@ -49,6 +49,36 @@
       ],
       "title": "Airflow DAG Success Rate (1h)",
       "type": "timeseries"
+    },
+    {
+      "type": "graph",
+      "title": "Fraud-Flag Throughput",
+      "gridPos": { "x": 0, "y": 12, "w": 12, "h": 6 },
+      "targets": [
+        {
+          "expr": "rate(flink_taskmanager_job_task_operator_flink_metrics_counter_flagged_sessions_total[1m])",
+          "legendFormat": "flags/min"
+        }
+      ],
+      "yaxes": [
+        { "format": "ops", "min": 0 },
+        { "format": "short" }
+      ]
+    },
+    {
+      "type": "graph",
+      "title": "Pipeline Latency (P95)",
+      "gridPos": { "x": 12, "y": 12, "w": 12, "h": 6 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(flink_taskmanager_job_task_operator_flink_metrics_histogram_pipeline_latency_ms_bucket[5m])) by (le))",
+          "legendFormat": "p95 latency"
+        }
+      ],
+      "yaxes": [
+        { "format": "ms", "min": 0 },
+        { "format": "short" }
+      ]
     }
   ],
   "schemaVersion": 36,
