@@ -1,0 +1,9 @@
+kafka-python==2.2.11
+py4j==0.10.9.9
+pyspark==4.0.0
+redis==6.2.0
+confluent-kafka[avro]==2.2.0
+avro-python3==1.10.2confluent-kafka==2.10.1
+avro-python3==1.10.2
+fastavro==1.11.1
+requests==2.32.4
