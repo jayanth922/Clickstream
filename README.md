@@ -213,51 +213,92 @@ This README captures all work completed in our recent continuation, so we know e
 
 ## 2. Schema Registry & Avro Producer  
 - Added Confluent Schema Registry service to `docker-compose.yml` (port 8081).  
-- Installed `'confluent-kafka[avro]'` and `avro-python3` (via pip, Option B with prebuilt wheel).  
-- Updated `producer.py` to use `AvroProducer` with registry URL, defaulting to our new Avro schema.  
+- Installed `confluent-kafka[avro]` and `avro-python3` (using prebuilt wheel).  
+- Updated `producer.py` to use `AvroProducer` with the registry URL and our new Avro schema.  
 
 ## 3. Flink Job & Build Infrastructure  
 - Created `flink-jobs/pom.xml` (Flink 1.16.0, Confluent overrides, shade plugin).  
 - Mounted connector JARs (`kafka-schema-registry-client-7.4.0.jar`, `common-utils-7.4.0.jar`, `flink-avro-confluent-registry-1.16.0.jar`) into `/opt/flink/usrlib`.  
-- Installed missing Confluent client JARs into local Maven repo so the build could resolve them.  
+- Installed missing Confluent client JARs into the local Maven repo so the build could resolve them.  
 - Packaged a fat JAR (`flink-jobs-1.0-SNAPSHOT.jar`) via `mvn clean package -DskipTests`.  
 
 ## 4. Flink Job Implementation  
 - Wrote `BankingFraudDetectionJob.java`  
-  - **KafkaSource** with `ConfluentRegistryAvroDeserializationSchema` pointing at Schema Registry.  
+  - **KafkaSource** with `ConfluentRegistryAvroDeserializationSchema`.  
   - **EnrichmentAndScoringFunction** stub:
     - Redis lookup (Jedis) for device risk / login failures / account status.  
     - Geo-IP HTTP call (okhttp3) to external service.  
-    - ML scoring HTTP call to `/score` endpoint.  
+    - ML scoring HTTP call to `/score`.  
     - Emits only sessions with `anomaly_score > 0.8`.  
-  - **KafkaSink** writing flagged sessions to `fraud-flags` topic as `sessionId,score`.  
+  - **KafkaSink** writing flagged sessions to `fraud-flags` (`sessionId,score`).  
 
 ## 5. Custom Metric Instrumentation  
-- Imported `org.apache.flink.metrics.Counter` and `DescriptiveStatisticsHistogram`.  
-- In `open()` registered:
+- Imported `Counter` and `DescriptiveStatisticsHistogram`.  
+- Registered:
   - `flagged_sessions_total` (Counter)  
-  - `pipeline_latency_ms` (Histogram, single-arg constructor)  
-- In `processElement()` incremented counter and recorded latency (`now – event.timestamp`) whenever a session was flagged.  
+  - `pipeline_latency_ms` (Histogram)  
+- Updated `processElement()` to increment counter and record latency.  
 
 ## 6. Observability Configuration  
-- **Flink PrometheusReporter** enabled in `flink-conf.yaml` on port 9249.  
-- **Prometheus scrape jobs** added in `prometheus.yml` for:
+- Enabled Flink PrometheusReporter in `flink-conf.yaml` on port 9249.  
+- Added Prometheus scrape jobs for:
   - `jobmanager:9249`  
   - `taskmanager:9249`  
-- **Alert rules** appended in `alert_rules.yml`:
-  - `HighFraudFlagRate` (> 5 flags/min → warning)  
-  - `PipelineLatencySLABreach` (P95 > 500 ms → critical)  
+- Defined Alerts in `alert_rules.yml`:
+  - `HighFraudFlagRate` (>5 flags/min)  
+  - `PipelineLatencySLABreach` (P95 >500 ms)  
 
 ## 7. Grafana Dashboard Enhancements  
-- Added two new panels to `clickstream-dashboard.json`:
-  1. **Fraud-Flag Throughput** (PromQL `rate(...flagged_sessions_total[1m])`)  
-  2. **Pipeline Latency (P95)** (PromQL `histogram_quantile(0.95, sum(rate(...latency_ms_bucket[5m])) by (le))`)  
+- Added panels to `clickstream-dashboard.json`:
+  1. **Fraud-Flag Throughput** (`rate(...flagged_sessions_total[1m])`)  
+  2. **Pipeline Latency (P95)** (`histogram_quantile(0.95, sum(rate(...latency_ms_bucket[5m])) by (le))`)  
 
 ---
 
-**Next Milestone**  
-- Deploy a dummy ML “always-anomaly” service or lower the anomaly threshold to bootstrap metrics.  
-- Stream a handful of test events to Kafka.  
-- Validate that Prometheus is scraping Flink metrics and Grafana panels show non-empty data.  
-- Then resume development on real ML integration or production hardening (secrets, HA, CI/CD).
+## Placeholders & Simulations Remaining
 
+1. **Event Producer & Schema**  
+   - Simulator in `producer.py` must be replaced with real front-end/back-end instrumentation.  
+   - Avro schema versioning & evolution pipeline via CI.
+
+2. **ML Scoring Service**  
+   - Dummy Flask stub always returns `1.0`.  
+   - Needs real model deployment (TensorFlow Serving, Spark ML endpoint, custom microservice).  
+   - Hard-coded threshold (`>0.8`) should be driven by runtime config.
+
+3. **Geo-IP Enrichment**  
+   - `geoip-service` stub must be implemented with real Geo-IP data (MaxMind, IP2Location).
+
+4. **Redis Risk Lookup**  
+   - Simulated Redis keys (`risk:<fp>:score`, `account:<user>:status`) need real data pipelines populating those values.
+
+5. **Flink Process Logic**  
+   - `EnrichmentAndScoringFunction` stub (“// TODO…”) must be expanded to full feature extraction, stateful windowing, and fraud-pattern detection.
+
+6. **CI/CD & Deployment**  
+   - Docker-Compose → Helm/Kustomize for Kubernetes.  
+   - Automate JAR builds & deployments via CI pipeline (GitHub Actions, Jenkins).
+
+7. **Secrets & Config**  
+   - Move hard-coded endpoints and credentials into Vault or Kubernetes Secrets.  
+   - Enable TLS, ACLs, and RBAC for all services.
+
+8. **Observability at Scale**  
+   - Migrate Prometheus to Operator + Thanos for long-term metrics.  
+   - Add ServiceMonitors, expand scrape targets to Geo-IP, ML services.  
+   - Implement centralized logging (ELK/Loki) and tracing (OpenTelemetry).
+
+9. **Performance Testing & Auto-Scaling**  
+   - Load-test click-streams (k6, Gatling).  
+   - Configure HPAs for Flink TaskManagers and Kafka brokers (via Cruise Control).
+
+---
+
+## Next Milestone  
+Choose which placeholder or simulation to replace first—e.g.:
+
+- **Deploy a real ML model** and retire the dummy stub.  
+- **Integrate your banking UI** to produce live events.  
+- **Migrate to Kubernetes** with Helm charts and secrets management.
+
+We’ll then iterate on that piece and continue hardening the platform.
