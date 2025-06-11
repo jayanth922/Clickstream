@@ -1,0 +1,237 @@
+networks:
+  clickstream-net:
+    name: clickstream-net
+    driver: bridge
+
+volumes:
+  zookeeper-data:
+  kafka-data:
+  redis-data:
+  airflow-db:
+  prometheus-data:
+  grafana-data:
+
+services:
+
+  zookeeper:
+    image: bitnami/zookeeper:3.7.1
+    container_name: zookeeper
+    restart: unless-stopped
+    networks:
+      - clickstream-net
+    ports:
+      - "2181:2181"
+    environment:
+      ALLOW_ANONYMOUS_LOGIN: "yes"
+    volumes:
+      - zookeeper-data:/bitnami/zookeeper
+    healthcheck:
+      test: ["CMD", "zkServer.sh", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # ── docker-compose.yml (add under kafka & zookeeper services) ──
+  schema-registry:
+    image: confluentinc/cp-schema-registry:7.4.0
+    depends_on:
+      - zookeeper
+      - kafka
+    ports:
+      - "8081:8081"
+    environment:
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: PLAINTEXT://kafka:9092
+      SCHEMA_REGISTRY_KAFKASTORE_CONNECTION_URL: zookeeper:2181
+      # Optional: authentication settings if your cluster is locked down
+
+
+  kafka:
+    image: bitnami/kafka:3.3.2
+    container_name: kafka
+    restart: unless-stopped
+    networks:
+      - clickstream-net
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_CFG_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      ALLOW_PLAINTEXT_LISTENER: "yes"
+    volumes:
+      - kafka-data:/bitnami/kafka
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # ── docker-compose.yml (add under kafka & zookeeper services) ──
+    schema-registry:
+      image: confluentinc/cp-schema-registry:7.4.0
+      depends_on:
+        - zookeeper
+        - kafka
+      ports:
+        - "8081:8081"
+      environment:
+        SCHEMA_REGISTRY_HOST_NAME: schema-registry
+        SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: PLAINTEXT://kafka:9092
+        SCHEMA_REGISTRY_KAFKASTORE_CONNECTION_URL: zookeeper:2181
+        # Optional: authentication settings if your cluster is locked down
+
+
+  redis:
+    image: redis:6.2.13-alpine
+    container_name: redis
+    restart: unless-stopped
+    networks:
+      - clickstream-net
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+
+  flink-jobmanager:
+    image: flink:1.15.4-scala_2.12
+    container_name: flink-jobmanager
+    restart: unless-stopped
+    networks:
+      - clickstream-net
+    ports:
+      - "8081:8081"   # Flink UI
+      - "9450:9450"   # Prometheus metrics
+    depends_on:
+      - kafka        # start after Kafka container exists
+    command: ["jobmanager"]
+    environment:
+      FLINK_PROPERTIES: |
+        jobmanager.memory.process.size: 1024m
+        metrics.reporters: prom
+        metrics.reporter.prom.class: org.apache.flink.metrics.prometheus.PrometheusReporter
+        metrics.reporter.prom.port: 9450
+        metrics.reporter.prom.host: 0.0.0.0
+        metrics.reporter.prom.interval: 10 SECONDS
+
+  flink-taskmanager:
+    image: flink:1.15.4-scala_2.12
+    container_name: flink-taskmanager
+    restart: unless-stopped
+    networks:
+      - clickstream-net
+    ports:
+      - "9069:9069"   # taskmanager RPC port (optional)
+    depends_on:
+      - flink-jobmanager
+    command: ["taskmanager"]
+    environment:
+      FLINK_PROPERTIES: |
+        jobmanager.memory.process.size: 1024m
+        metrics.reporters: prom
+        metrics.reporter.prom.class: org.apache.flink.metrics.prometheus.PrometheusReporter
+        metrics.reporter.prom.port: 9450
+        metrics.reporter.prom.host: 0.0.0.0
+        metrics.reporter.prom.interval: 10 SECONDS
+
+
+  airflow:
+    image: apache/airflow:2.5.1
+    container_name: airflow
+    restart: unless-stopped
+    networks:
+      - clickstream-net
+    ports:
+      - "8080:8080"
+    command: ["airflow", "standalone"]
+    environment:
+      AIRFLOW__CORE__FERNET_KEY: "gJ8v0Og-6Zx5rV1sAhGvFq7lPAwX8I6foXU92L2J6ZI="
+      AIRFLOW__CORE__AUTH_MANAGER: 'airflow.www.fab_security.manager.SimpleAuthManager'
+      AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_USERS: 'admin:Admin'
+      _PIP_ADDITIONAL_REQUIREMENTS: "apache-airflow-providers-postgres redis statsd"
+      AIRFLOW__METRICS__STATSD_ON: "True"
+      AIRFLOW__METRICS__STATSD_HOST: "statsd-exporter"
+      AIRFLOW__METRICS__STATSD_PORT: "9125"
+      AIRFLOW__METRICS__STATSD_PREFIX: "airflow"
+    volumes:
+      - /Users/spartan/Downloads/clickstream-demo/dags:/opt/airflow/dags
+      - /Users/spartan/Downloads/clickstream-demo:/opt/clickstream-demo
+
+
+  prometheus:
+    image: prom/prometheus:v2.41.0
+    container_name: prometheus
+    restart: unless-stopped
+    networks:
+      - clickstream-net
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+      - ./prometheus/alert_rules.yml:/etc/prometheus/alert_rules.yml
+
+  grafana:
+    image: grafana/grafana:9.5.0
+    container_name: grafana
+    restart: unless-stopped
+    networks:
+      - clickstream-net
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: alertmanager
+    restart: unless-stopped
+    networks:
+      - clickstream-net
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./alertmanager/config.yml:/etc/alertmanager/config.yml
+    command:
+      - '--config.file=/etc/alertmanager/config.yml'
+
+
+    # Redis Exporter
+  redis-exporter:
+    image: oliver006/redis_exporter:latest
+    container_name: redis-exporter
+    restart: unless-stopped
+    networks:
+      - clickstream-net
+    ports:
+      - "9121:9121"
+    environment:
+      - REDIS_ADDR=redis:6379
+
+  # Kafka JMX Exporter (requires JMX on Kafka; using bitnami’s image)
+  kafka-exporter:
+    image: bitnami/kafka-exporter:latest
+    container_name: kafka-exporter
+    restart: unless-stopped
+    networks:
+      - clickstream-net
+    ports:
+      - "9308:9308"
+    environment:
+      - KAFKA_ENABLED_METRICS=all
+      - KAFKA_JMX_PROMETHEUS_PORT=9308
+      - KAFKA_JMX_PORT=9999
+      - KAFKA_BROKER_LIST=kafka:9092
+
+  # Airflow metrics via statsd → Prometheus exporter
+  statsd-exporter:
+    image: prom/statsd-exporter:latest
+    container_name: statsd-exporter
+    restart: unless-stopped
+    networks:
+      - clickstream-net
+    ports:
+      - "9125:9125/udp"  # UDP intake from Airflow
+      - "9102:9102"      # Prometheus scrape
+
+
