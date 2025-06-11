@@ -182,3 +182,20 @@ This technical demonstration ingests synthetic clickstream events into Kafka, pr
   - Click Counts (Redis key-value query)
 
   - DAG Success Rate (promQL ratio of dag_run metrics)
+
+
+## Project Structure
+clickstream-demo/
+├── dags/
+│   └── clickstream_pipeline.py
+├── producer.py
+├── spark_stream.py
+├── spark_batch.py
+├── prometheus.yml
+├── alert_rules.yml
+├── alertmanager/
+│   └── config.yml
+├── grafana/
+│   └── clickstream-dashboard.json
+├── docker-compose.yml
+└── README.md
