@@ -185,17 +185,21 @@ This technical demonstration ingests synthetic clickstream events into Kafka, pr
 
 
 ## Project Structure
+
+```text
 clickstream-demo/
 ├── dags/
-│   ├── clickstream_pipeline.py
-│   └── example_dag.py
-├── docker-compose.yml
-├── producer.py
-├── spark_stream.py
-├── spark_batch.py
-├── prometheus.yml
-├── alert_rules.yml
+│   └── clickstream_pipeline.py       # Airflow DAG for orchestrating the pipeline
+├── producer.py                       # Kafka producer to simulate clickstream data
+├── spark_stream.py                   # Spark Structured Streaming app for real-time processing
+├── spark_batch.py                    # Spark batch job for periodic processing via Airflow
+├── prometheus.yml                    # Prometheus configuration for scraping exporters
+├── alert_rules.yml                   # Alert rules for Prometheus (e.g., service down)
 ├── alertmanager/
-│   └── config.yml
-└── grafana/
-    └── clickstream-dashboard.json
+│   └── config.yml                    # Alertmanager config for routing alerts
+├── grafana/
+│   └── clickstream-dashboard.json    # Grafana dashboard configuration
+├── docker-compose.yml                # Docker Compose file for all services
+└── README.md                         # Documentation for the entire project
+```
+
