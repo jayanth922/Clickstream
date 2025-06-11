@@ -20,9 +20,6 @@
    - [Monitoring & Alerting](#7-monitoring--alerting)  
    - [Visualization (Grafana)](#8-visualization-grafana)  
 6. [Project Structure](#project-structure)  
-7. [Usage Examples](#usage-examples)  
-8. [Future Improvements](#future-improvements)  
-9. [License](#license)  
 
 ---
 
