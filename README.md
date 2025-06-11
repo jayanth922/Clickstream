@@ -187,7 +187,9 @@ This technical demonstration ingests synthetic clickstream events into Kafka, pr
 ## Project Structure
 clickstream-demo/
 ├── dags/
-│   └── clickstream_pipeline.py
+│   ├── clickstream_pipeline.py
+│   └── example_dag.py
+├── docker-compose.yml
 ├── producer.py
 ├── spark_stream.py
 ├── spark_batch.py
@@ -195,7 +197,5 @@ clickstream-demo/
 ├── alert_rules.yml
 ├── alertmanager/
 │   └── config.yml
-├── grafana/
-│   └── clickstream-dashboard.json
-├── docker-compose.yml
-└── README.md
+└── grafana/
+    └── clickstream-dashboard.json
