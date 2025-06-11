@@ -5,6 +5,8 @@ import java.io.File;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 
+import javax.naming.Context;
+
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 
@@ -24,7 +26,7 @@ import org.apache.flink.util.Collector;
 
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Histogram;
-import org.apache.flink.metrics.SimpleHistogram;
+import org.apache.flink.runtime.metrics.DescriptiveStatisticsHistogram;
 
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
@@ -112,7 +114,7 @@ public class BankingFraudDetectionJob {
                     .counter("flagged_sessions_total");
             latencyHistogram = getRuntimeContext()
                     .getMetricGroup()
-                    .histogram("pipeline_latency_ms", new SimpleHistogram(1024));
+                    .histogram("pipeline_latency_ms", new DescriptiveStatisticsHistogram(1024));
         }
 
         @Override
