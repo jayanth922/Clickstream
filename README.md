@@ -107,81 +107,78 @@ This technical demonstration ingests synthetic clickstream events into Kafka, pr
 
 
 
-##Service Breakdown
+## Service Breakdown
 
 1. **ZooKeeper**
-Coordinates Kafka brokers.
+- Coordinates Kafka brokers.
 
-Image: bitnami/zookeeper:3.7.1
+- Image: bitnami/zookeeper:3.7.1
 
-Healthcheck: zkServer.sh status
+- Healthcheck: zkServer.sh status
 
 2. **Kafka**
-Persistent, partitioned clickstream topic clickstream-events.
+- Persistent, partitioned clickstream topic clickstream-events.
 
-Image: bitnami/kafka:3.3.2
+- Image: bitnami/kafka:3.3.2
 
-Healthcheck: kafka-broker-api-versions --bootstrap-server localhost:9092
+- Healthcheck: kafka-broker-api-versions --bootstrap-server localhost:9092
 
 3. **Producer**
-Simulates user page views at configurable RPS.
+- Simulates user page views at configurable RPS.
 
-Script: producer.py
+- Script: producer.py
 
-Library: kafka-python
+- Library: kafka-python
 
 4. **Spark Structured Streaming**
-Aggregates per-page counts in 1 min tumbling windows.
+- Aggregates per-page counts in 1 min tumbling windows.
 
-App: spark_stream.py (streaming)
+- App: spark_stream.py (streaming)
 
-App: spark_batch.py (batch for Airflow DAG)
+- App: spark_batch.py (batch for Airflow DAG)
 
-Framework: PySpark + Kafka connector
+- Framework: PySpark + Kafka connector
 
 5. **Redis Feature Store**
-Stores windowed counts as Redis hashes:
-
-nginx
-
-HSET click_count:/home 2025-06-10T05:04:00 35
-Image: redis:6.2.13-alpine
+- Stores windowed counts as Redis hashes:
+  - HSET click_count:/home 2025-06-10T05:04:00 35
+- Image: redis:6.2.13-alpine
 
 6. **Airflow Orchestration**
-Defines DAG clickstream_pipeline in dags/clickstream_pipeline.py:
+- Defines DAG clickstream_pipeline in dags/clickstream_pipeline.py:
 
-create_kafka_topic
+- create_kafka_topic
 
-start_producer
+- start_producer
 
-run_spark_batch
+- run_spark_batch
 
-verify_redis
+- verify_redis
 
 7. **Monitoring & Alerting**
-Prometheus scrapes:
+- Prometheus scrapes:
 
-redis-exporter:9121
+  - redis-exporter:9121
 
-kafka-exporter:9308
+  - kafka-exporter:9308
 
-flink-jobmanager:9450
+  - flink-jobmanager:9450
 
-statsd-exporter:9102
+  - statsd-exporter:9102
 
-prometheus:9090
+  - prometheus:9090
 
-Alert Rules: fire on up==0 for 2 min (KafkaDown, RedisDown, FlinkDown, AirflowDown)
+- Alert Rules: fire on up==0 for 2 min (KafkaDown, RedisDown, FlinkDown, AirflowDown)
 
-Alertmanager: routes to Slack / email via alertmanager/config.yml
+- Alertmanager: routes to Slack / email via alertmanager/config.yml
 
 8. **Visualization (Grafana)**
-Dashboards: imported from grafana/clickstream-dashboard.json
+- Dashboards: imported from grafana/clickstream-dashboard.json
 
-Panels:
+- Panels:
 
-Service Availability (promQL, max by(job)(up{job=~...}))
+  - Service Availability (promQL, max by(job)(up{job=~...}))
 
-Click Counts (Redis key-value query)
+  - Click Counts (Redis key-value query)
 
-DAG Success Rate (promQL ratio of dag_run metrics)
+  - DAG Success Rate (promQL ratio of dag_run metrics)
