@@ -1,1 +1,4 @@
 venv/
+# Ignore large JARs and target build outputs
+flink-jobs/lib/*.jar
+flink-jobs/target/
