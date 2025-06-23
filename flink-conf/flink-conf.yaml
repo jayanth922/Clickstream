@@ -1,0 +1,5 @@
+metrics.reporters: prom
+metrics.reporter.prom.class: org.apache.flink.metrics.prometheus.PrometheusReporter
+metrics.reporter.prom.port: 9450
+metrics.reporter.prom.host: 0.0.0.0
+metrics.reporter.prom.interval: 10 SECONDS

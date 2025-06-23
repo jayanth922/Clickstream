@@ -1,0 +1,58 @@
+groups:
+  - name: clickstream_alerts
+    rules:
+      - alert: KafkaDown
+        expr: up{job="kafka"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Kafka broker is down"
+          description: "Kafka broker has been unreachable for over 2 minutes."
+
+      - alert: FlinkJobManagerDown
+        expr: up{job="flink"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Flink JobManager is down"
+          description: "Flink JobManager has been unreachable for over 2 minutes."
+
+      - alert: RedisDown
+        expr: up{job="redis"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Redis is down"
+          description: "Redis server has been unreachable for over 2 minutes."
+
+      - alert: AirflowDown
+        expr: up{job="airflow"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Airflow webserver is down"
+          description: "Airflow webserver has been unreachable for over 2 minutes."
+
+  - name: fraud-detection
+    rules:
+      - alert: HighFraudFlagRate
+        expr: rate(flink_taskmanager_job_task_operator_flink_metrics_counter_flagged_sessions_total[1m]) > 5
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High fraud-flag throughput (>{{ $value }} flags/min)"
+          description: "Fraud-detection job is flagging >5 sessions/minute for over 2m."
+
+      - alert: PipelineLatencySLABreach
+        expr: histogram_quantile(0.95, sum(rate(flink_taskmanager_job_task_operator_flink_metrics_histogram_pipeline_latency_ms_bucket[5m])) by (le)) > 500
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "95th-percentile pipeline latency >500 ms"
+          description: "End‐to‐end event latency exceeds SLA of 500 ms for over 5 minutes."

@@ -30,19 +30,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    # ── docker-compose.yml (add under kafka & zookeeper services) ──
-  schema-registry:
-    image: confluentinc/cp-schema-registry:7.4.0
-    depends_on:
-      - zookeeper
-      - kafka
-    ports:
-      - "8081:8081"
-    environment:
-      SCHEMA_REGISTRY_HOST_NAME: schema-registry
-      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: PLAINTEXT://kafka:9092
-      SCHEMA_REGISTRY_KAFKASTORE_CONNECTION_URL: zookeeper:2181
-      # Optional: authentication settings if your cluster is locked down
 
 
   kafka:
@@ -68,18 +55,18 @@ services:
       timeout: 5s
       retries: 5
     # ── docker-compose.yml (add under kafka & zookeeper services) ──
-    schema-registry:
-      image: confluentinc/cp-schema-registry:7.4.0
-      depends_on:
-        - zookeeper
-        - kafka
-      ports:
-        - "8081:8081"
-      environment:
-        SCHEMA_REGISTRY_HOST_NAME: schema-registry
-        SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: PLAINTEXT://kafka:9092
-        SCHEMA_REGISTRY_KAFKASTORE_CONNECTION_URL: zookeeper:2181
-        # Optional: authentication settings if your cluster is locked down
+  schema-registry:
+    image: confluentinc/cp-schema-registry:7.4.0
+    depends_on:
+      - zookeeper
+      - kafka
+    ports:
+      - "8081:8081"
+    environment:
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: PLAINTEXT://kafka:9092
+      SCHEMA_REGISTRY_KAFKASTORE_CONNECTION_URL: zookeeper:2181
+      # Optional: authentication settings if your cluster is locked down
 
 
   redis:
@@ -113,6 +100,9 @@ services:
         metrics.reporter.prom.port: 9450
         metrics.reporter.prom.host: 0.0.0.0
         metrics.reporter.prom.interval: 10 SECONDS
+    volumes:
+      - ./flink-jobs/lib:/opt/flink/usrlib
+
 
   flink-taskmanager:
     image: flink:1.15.4-scala_2.12
@@ -133,6 +123,9 @@ services:
         metrics.reporter.prom.port: 9450
         metrics.reporter.prom.host: 0.0.0.0
         metrics.reporter.prom.interval: 10 SECONDS
+    volumes:
+      - ./flink-jobs/lib:/opt/flink/usrlib
+
 
 
   airflow:

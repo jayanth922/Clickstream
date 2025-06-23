@@ -1,0 +1,19 @@
+flowchart LR
+  subgraph Ingestion
+    FE[Frontend App] -->|Kafka Producer| K(Kafka Broker)
+    K --> SP[Flink / Spark Streaming]
+  end
+  subgraph Serving
+    SP --> RS[Redis OSS]
+  end
+  subgraph Orchestration
+    AF[Airflow Scheduler]
+    AF --> SP
+    AF -->|UI| AW[Airflow Webserver]
+  end
+  subgraph Monitoring
+    K --> PM[Prometheus]
+    SP --> PM
+    RS --> PM
+    PM --> GF[Grafana]
+  end

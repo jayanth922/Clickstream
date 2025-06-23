@@ -1,0 +1,14 @@
+global:
+  # Replace with your real Slack webhook or SMTP credentials
+  slack_api_url: 'https://hooks.slack.com/services/XX/YY/ZZ'
+
+route:
+  receiver: 'slack-alerts'
+  group_wait: 30s
+
+receivers:
+  - name: 'slack-alerts'
+    slack_configs:
+      - channel: '#alerts'
+        title: '{{ .CommonAnnotations.summary }}'
+        text: '{{ .CommonAnnotations.description }}'
