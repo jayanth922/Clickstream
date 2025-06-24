@@ -22,7 +22,6 @@
 6. [Project Structure](#project-structure)  
 7. [Usage Examples](#usage-examples)  
 8. [Future Improvements](#future-improvements)  
-9. [License](#license)  
 
 ---
 
@@ -239,7 +238,7 @@ clickstream-demo/
 
 ---
 
-# Clickstream Fraud-Detection Platform – Continuation Summary
+# Clickstream Fraud-Detection Platform – Continuation Summary 1
 
 This README captures all work completed in our recent continuation, so we know exactly where to pick up next.
 
