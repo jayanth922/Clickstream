@@ -182,20 +182,162 @@ clickstream-demo/
 
 ## Usage Examples
 
-# Produce 50 events/sec
+1. Produce 50 events/sec
    ```bash
    ./producer.py
 
-# Trigger Airflow DAG via CLI
+2. Trigger Airflow DAG via CLI
    ```bash
    airflow dags trigger clickstream_pipeline
 
-# Inspect Redis feature store
+3. Inspect Redis feature store
    ```bash
    docker-compose exec redis redis-cli HGETALL click_count:/home
 
-# Query in Prometheus
+4. Query in Prometheus
    ```bash
    rate(airflow_dag_run_total[1h]) - rate(airflow_dag_run_failed_total[1h])
 
-# Grafana panels auto‐refresh every 15s by default
+5. Grafana panels auto‐refresh every 15s by default
+
+---
+
+## Future Improvements
+
+1. **Production-grade security:**
+
+   - Enable ACLs & TLS in ZK/Kafka
+
+   - Requirepass in Redis + Grafana auth
+
+2. **Scalability & High Availability:**
+
+   - Kafka RF > 1, ZooKeeper quorum > 3
+
+   - Spark on standalone cluster or YARN/K8s
+
+   - Redis Sentinel/Cluster for failover
+
+3. **Schema & Governance:**
+
+   - Schema Registry (Confluent) for Kafka topics
+
+   - Data catalog (e.g. OpenMetadata) integration
+
+4. **CI/CD & Testing:**
+
+   - GitHub Actions for linting, smoke tests
+
+   - Integration tests with TestContainers
+
+5. **Cost & Resource Management:**
+
+   - Auto‐scaling Flink / Spark executors
+
+   - Kubernetes operator for DAGs & pipelines
+  
+
+---
+
+# Clickstream Fraud-Detection Platform – Continuation Summary
+
+This README captures all work completed in our recent continuation, so we know exactly where to pick up next.
+
+---
+
+## 1. Avro Schema Definition  
+- Created `schemas/banking_ui_event.avsc` describing the `BankingUIEvent` record.  
+- Fields include UUIDs, event_type, element_id, masked input hash, timestamp (millis), latency, device fingerprint, IP.  
+
+## 2. Schema Registry & Avro Producer  
+- Added Confluent Schema Registry service to `docker-compose.yml` (port 8081).  
+- Installed `'confluent-kafka[avro]'` and `avro-python3` (via pip, Option B with prebuilt wheel).  
+- Updated `producer.py` to use `AvroProducer` with registry URL, defaulting to our new Avro schema.  
+
+## 3. Flink Job & Build Infrastructure  
+- Created `flink-jobs/pom.xml` (Flink 1.16.0, Confluent overrides, shade plugin).  
+- Mounted connector JARs (`kafka-schema-registry-client-7.4.0.jar`, `common-utils-7.4.0.jar`, `flink-avro-confluent-registry-1.16.0.jar`) into `/opt/flink/usrlib`.  
+- Installed missing Confluent client JARs into local Maven repo so the build could resolve them.  
+- Packaged a fat JAR (`flink-jobs-1.0-SNAPSHOT.jar`) via `mvn clean package -DskipTests`.  
+
+## 4. Flink Job Implementation  
+- Wrote `BankingFraudDetectionJob.java`  
+  - **KafkaSource** with `ConfluentRegistryAvroDeserializationSchema` pointing at Schema Registry.  
+  - **EnrichmentAndScoringFunction** stub:
+    - Redis lookup (Jedis) for device risk / login failures / account status.  
+    - Geo-IP HTTP call (okhttp3) to external service.  
+    - ML scoring HTTP call to `/score` endpoint.  
+    - Emits only sessions with `anomaly_score > 0.8`.  
+  - **KafkaSink** writing flagged sessions to `fraud-flags` topic as `sessionId,score`.  
+
+## 5. Custom Metric Instrumentation  
+- Imported `org.apache.flink.metrics.Counter` and `DescriptiveStatisticsHistogram`.  
+- In `open()` registered:
+  - `flagged_sessions_total` (Counter)  
+  - `pipeline_latency_ms` (Histogram, single-arg constructor)  
+- In `processElement()` incremented counter and recorded latency (`now – event.timestamp`) whenever a session was flagged.  
+
+## 6. Observability Configuration  
+- **Flink PrometheusReporter** enabled in `flink-conf.yaml` on port 9249.  
+- **Prometheus scrape jobs** added in `prometheus.yml` for:
+  - `jobmanager:9249`  
+  - `taskmanager:9249`  
+- **Alert rules** appended in `alert_rules.yml`:
+  - `HighFraudFlagRate` (> 5 flags/min → warning)  
+  - `PipelineLatencySLABreach` (P95 > 500 ms → critical)  
+
+## 7. Grafana Dashboard Enhancements  
+- Added two new panels to `clickstream-dashboard.json`:
+  1. **Fraud-Flag Throughput** (PromQL `rate(...flagged_sessions_total[1m])`)  
+  2. **Pipeline Latency (P95)** (PromQL `histogram_quantile(0.95, sum(rate(...latency_ms_bucket[5m])) by (le))`)  
+
+---
+
+
+## Placeholders & Simulations Remaining
+
+1. **Event Producer & Schema**  
+   - Simulator in `producer.py` must be replaced with real front-end/back-end instrumentation.  
+   - Avro schema versioning & evolution pipeline via CI.
+
+2. **ML Scoring Service**  
+   - Dummy Flask stub always returns `1.0`.  
+   - Needs real model deployment (TensorFlow Serving, Spark ML endpoint, custom microservice).  
+   - Hard-coded threshold (`>0.8`) should be driven by runtime config.
+
+3. **Geo-IP Enrichment**  
+   - `geoip-service` stub must be implemented with real Geo-IP data (MaxMind, IP2Location).
+
+4. **Redis Risk Lookup**  
+   - Simulated Redis keys (`risk:<fp>:score`, `account:<user>:status`) need real data pipelines populating those values.
+
+5. **Flink Process Logic**  
+   - `EnrichmentAndScoringFunction` stub (“// TODO…”) must be expanded to full feature extraction, stateful windowing, and fraud-pattern detection.
+
+6. **CI/CD & Deployment**  
+   - Docker-Compose → Helm/Kustomize for Kubernetes.  
+   - Automate JAR builds & deployments via CI pipeline (GitHub Actions, Jenkins).
+
+7. **Secrets & Config**  
+   - Move hard-coded endpoints and credentials into Vault or Kubernetes Secrets.  
+   - Enable TLS, ACLs, and RBAC for all services.
+
+8. **Observability at Scale**  
+   - Migrate Prometheus to Operator + Thanos for long-term metrics.  
+   - Add ServiceMonitors, expand scrape targets to Geo-IP, ML services.  
+   - Implement centralized logging (ELK/Loki) and tracing (OpenTelemetry).
+
+9. **Performance Testing & Auto-Scaling**  
+   - Load-test click-streams (k6, Gatling).  
+   - Configure HPAs for Flink TaskManagers and Kafka brokers (via Cruise Control).
+
+---
+
+## Next Milestone  
+Choose which placeholder or simulation to replace first—e.g.:
+
+- **Deploy a real ML model** and retire the dummy stub.  
+- **Integrate your banking UI** to produce live events.  
+- **Migrate to Kubernetes** with Helm charts and secrets management.
+
+We’ll then iterate on that piece and continue hardening the platform.
