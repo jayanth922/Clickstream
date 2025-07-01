@@ -340,3 +340,68 @@ Choose which placeholder or simulation to replace first—e.g.:
 - **Migrate to Kubernetes** with Helm charts and secrets management.
 
 We’ll then iterate on that piece and continue hardening the platform.
+
+
+---
+
+## Clickstream Fraud-Detection Platform – Continuation Summary 2
+
+_This section logs what we’ve implemented, trained, and wired up across our ongoing chats._
+
+### 1. Project Pivot: Network Intrusion Detection
+- Switched from the banking‐fraud demo to a **Network Intrusion Detection** use case.
+- Chose **CICIDS2017** dataset for offline training (with option to add UNSW-NB15 later).
+
+### 2. Kaggle Offline Training
+- **Kaggle notebook** setup with GPU, attached `cicids2017_cleaned.csv`.
+- Loaded data into pandas, performed:
+  - Exploratory analysis (shape, value counts for `Attack Type`).
+  - Train/test split (stratified on `Attack Type`).
+  - Label encoding and feature scaling (`StandardScaler`).
+- **Baseline models**:
+  - Random Forest classifier → metrics & confusion matrix.
+  - Logistic Regression quick check.
+- **State-of-the-art** model:
+  - Trained a **TabNet** classifier via `pytorch-tabnet`.
+  - Exported to ONNX (`tabnet_model.onnx`) using a GPU-free subprocess trick.
+- **Hyperparameter tuning**:
+  - Ran an **Optuna** study (20 trials) tuning `n_d, n_a, n_steps, gamma, lambda_sparse, lr, mask_type`.
+  - Configured TabNet to use `eval_metric=['accuracy']` internally.
+  - Selected best params from `best_tabnet_params.json`.
+  - Retrained final `clf_best` and saved checkpoint `tabnet_best.pth`.
+
+### 3. Artifacts Saved for Inference
+- **Serialization outputs** (in `/kaggle/working` and downloaded locally):
+  - `scaler.pkl` – fitted `StandardScaler`
+  - `label_encoder.pkl` – fitted `LabelEncoder`
+  - `best_tabnet_params.json` – Optuna best hyperparameters
+  - `tabnet_best.pth` – final PyTorch checkpoint
+  - `tabnet_best.onnx` – ONNX export for inference
+
+### 4. Flink Integration
+- **ONNX Runtime** dependency added (`com.microsoft.onnxruntime:onnxruntime:1.16.1`).
+- **Docker-Compose** updates:
+  - Mounted `./models` into `/opt/flink/models`
+  - Mounted shaded JARs in `./flink-jobs/lib` into `/opt/flink/usrlib`
+  - Removed unused Schema Registry service (no Avro/Registry step needed).
+- **`NetworkIntrusionDetectionJob.java` skeleton**:
+  - `NetworkFlow` POJO for Kafka JSON → Java objects.
+  - `StandardScaler` & `LabelEncoder` Java wrappers to mirror Python preprocessing.
+  - ONNX model load & inference in a `RichMapFunction`, emitting a Prometheus counter `intrusions_detected`.
+  - Kafka source for raw flows and sink for flagged alerts.
+- **Flink Job deployment**:
+  - Used Maven Shade plugin with `mainClass=com.bank.clickstream.NetworkIntrusionDetectionJob`.
+  - Copied `flink-jobs-1.0-SNAPSHOT.jar` into `flink-jobs/lib/`.
+  - Submitted via CLI (`flink run -d`) and via REST API.
+  - Iterated on auto‐submit override in `docker-compose.yml`.
+
+### 5. Next Steps
+1. **Fill in Java classes** with real field names, JSON parsing, and sink details.  
+2. **Tune production settings** (batch sizes, thresholds, alert rules).  
+3. **Extend dashboards** in Grafana: intrusion‐rate panels, geo‐heatmaps, SLA alerts.  
+4. Optionally backfill **UNSW-NB15** dataset or add streaming **Suricata** comparators.
+
+---
+
+> Whenever you reopen this project, start by skimming this section to recall where we left off—then jump right into the next open TODO!  
+
