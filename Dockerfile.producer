@@ -1,0 +1,17 @@
+FROM python:3.10-slim
+
+# This is inside the container:
+WORKDIR /app
+
+# Copy from your host's project root (build.context) into /app
+COPY network_flow_producer.py requirements.txt ./
+
+# If you have additional modules or scripts:
+# COPY scripts/ ./scripts/
+
+# Install deps
+RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install kafka-python
+
+# Default command
+CMD ["python", "network_flow_producer.py"]
