@@ -591,3 +591,82 @@ The Network Intrusion Detection system is now complete and production-ready. All
 **Total Implementation**: 2,000+ lines of production code across Java, Python, YAML, and shell scripts.
 
 **Key Achievement**: Seamless integration between Kaggle-trained TabNet model and production Flink streaming pipeline with zero accuracy loss.
+
+
+
+---
+
+
+# Clickstream Fraud-Detection Platform – Continuation Summary 4
+
+## Context: What We Accomplished
+
+This log continues from our recent work integrating a simulated network flow producer (for intrusion detection) with a Kafka broker running in Docker, connecting from the Mac host. Here’s a summary of what was done and the current state:
+
+---
+
+### 1. **Kafka in Docker**
+
+- Kafka is set up using Docker Compose (Bitnami image).
+- Ports are mapped so that Kafka is accessible on `localhost:9092` from the Mac host.
+- `KAFKA_CFG_ADVERTISED_LISTENERS` includes `EXTERNAL://localhost:9092` for host access and `PLAINTEXT://kafka:9092` for in-Docker networking.
+
+---
+
+### 2. **Network Flow Producer**
+
+- A Python script (`network_flow_producer.py`) generates synthetic network flows (CICIDS2017 style) and pushes them to a Kafka topic named `network-flows`.
+- The script connects to Kafka using `localhost:9092` (since it runs on the Mac host).
+- Robust retry logic is included to handle broker unavailability.
+
+---
+
+### 3. **Verification Steps**
+
+- Verified Kafka container is up and healthy with `docker-compose ps` and `nc -zv localhost 9092`.
+- Successfully produced and consumed test messages to/from Kafka using Kafka CLI inside the container.
+- Confirmed the Python producer can connect and send data to Kafka.
+
+---
+
+### 4. **What’s Working**
+
+- End-to-end data flow: Python producer (Mac) → Kafka (Docker) → Topic (`network-flows`)
+- Kafka is reachable from both inside and outside Docker.
+
+---
+
+## Next Steps / TODOs
+
+When picking this up, consider the following:
+
+1. **Consume and Validate Data**
+   - Write a Python or other consumer to read messages from the `network-flows` topic and validate schema or content.
+
+2. **Integrate Processing Tools**
+   - Connect Flink (already in Docker Compose) to Kafka for real-time processing.
+   - Set up dashboards (Grafana) and monitoring (Prometheus) if needed.
+
+3. **Documentation**
+   - Update the main `README.md` with these instructions and confirmation steps.
+   - Add diagrams if helpful.
+
+4. **Productionize**
+   - Add error handling, logging, and configuration options to the producer.
+   - Consider security (auth, SSL) for Kafka if moving beyond local development.
+
+5. **Optional Enhancements**
+   - Implement live packet capture and flow extraction from the Mac, instead of just simulated flows.
+   - Automate topic creation and health checks.
+
+---
+
+## Picking Up From Here
+
+- All service and topic names, ports, and expected behaviors are as described above.
+- Start by verifying Kafka and the producer as outlined, then proceed with consumption, analytics, or visualization.
+- For any changes, coordinate updates to `docker-compose.yml` and producer/consumer configs.
+
+---
+
+*This log ensures continuity—refer back here for context about the integration and system expectations!*
