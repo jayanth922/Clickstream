@@ -1,58 +1,58 @@
 groups:
-  - name: clickstream_alerts
+  - name: network_intrusion_detection
     rules:
-      - alert: KafkaDown
-        expr: up{job="kafka"} == 0
+      - alert: HighIntrusionRate
+        expr: rate(intrusions_detected[5m]) > 10
         for: 2m
         labels:
           severity: critical
         annotations:
-          summary: "Kafka broker is down"
-          description: "Kafka broker has been unreachable for over 2 minutes."
+          summary: "High intrusion detection rate"
+          description: "Intrusion detection rate is {{ $value }} per second"
 
-      - alert: FlinkJobManagerDown
-        expr: up{job="flink"} == 0
-        for: 2m
+      - alert: FlinkJobDown
+        expr: up{job="flink-jobmanager"} == 0
+        for: 1m
         labels:
           severity: critical
         annotations:
           summary: "Flink JobManager is down"
-          description: "Flink JobManager has been unreachable for over 2 minutes."
+          description: "Flink JobManager has been down for more than 1 minute"
 
-      - alert: RedisDown
-        expr: up{job="redis"} == 0
-        for: 2m
+      - alert: KafkaDown
+        expr: up{job="kafka-exporter"} == 0
+        for: 1m
         labels:
           severity: critical
         annotations:
-          summary: "Redis is down"
-          description: "Redis server has been unreachable for over 2 minutes."
+          summary: "Kafka is down"
+          description: "Kafka has been down for more than 1 minute"
 
-      - alert: AirflowDown
-        expr: up{job="airflow"} == 0
-        for: 2m
-        labels:
-          severity: critical
-        annotations:
-          summary: "Airflow webserver is down"
-          description: "Airflow webserver has been unreachable for over 2 minutes."
-
-  - name: fraud-detection
-    rules:
-      - alert: HighFraudFlagRate
-        expr: rate(flink_taskmanager_job_task_operator_flink_metrics_counter_flagged_sessions_total[1m]) > 5
-        for: 2m
+      - alert: LowFlowProcessingRate
+        expr: rate(total_flows_processed[5m]) < 1
+        for: 3m
         labels:
           severity: warning
         annotations:
-          summary: "High fraud-flag throughput (>{{ $value }} flags/min)"
-          description: "Fraud-detection job is flagging >5 sessions/minute for over 2m."
+          summary: "Low network flow processing rate"
+          description: "Processing rate is {{ $value }} flows per second"
 
-      - alert: PipelineLatencySLABreach
-        expr: histogram_quantile(0.95, sum(rate(flink_taskmanager_job_task_operator_flink_metrics_histogram_pipeline_latency_ms_bucket[5m])) by (le)) > 500
+  - name: infrastructure_alerts
+    rules:
+      - alert: HighCPUUsage
+        expr: (100 - (avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)) > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage detected"
+          description: "CPU usage is above 80% for {{ $labels.instance }}"
+
+      - alert: HighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 90
         for: 5m
         labels:
           severity: critical
         annotations:
-          summary: "95th-percentile pipeline latency >500 ms"
-          description: "End‐to‐end event latency exceeds SLA of 500 ms for over 5 minutes."
+          summary: "High memory usage detected"
+          description: "Memory usage is above 90% for {{ $labels.instance }}"

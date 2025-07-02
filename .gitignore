@@ -1,4 +1,14 @@
 venv/
-# Ignore large JARs and target build outputs
 flink-jobs/lib/*.jar
-flink-jobs/target/
+flink-jobs/target/*.jar
+*.log
+*.pyc
+*.pyo
+__pycache__/
+*.egg-info/
+*.egg
+dist/
+build/
+.Python
+*.DS_Store
+.idea/

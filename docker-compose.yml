@@ -31,7 +31,6 @@ services:
       timeout: 5s
       retries: 5
 
-
   kafka:
     image: bitnami/kafka:3.3.2
     container_name: kafka
@@ -45,7 +44,8 @@ services:
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_CFG_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CFG_LISTENERS: PLAINTEXT://0.0.0.0:9092
       ALLOW_PLAINTEXT_LISTENER: "yes"
     volumes:
       - kafka-data:/bitnami/kafka
@@ -54,20 +54,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    # ── docker-compose.yml (add under kafka & zookeeper services) ──
-  schema-registry:
-    image: confluentinc/cp-schema-registry:7.4.0
-    depends_on:
-      - zookeeper
-      - kafka
-    ports:
-      - "8081:8081"
-    environment:
-      SCHEMA_REGISTRY_HOST_NAME: schema-registry
-      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: PLAINTEXT://kafka:9092
-      SCHEMA_REGISTRY_KAFKASTORE_CONNECTION_URL: zookeeper:2181
-      # Optional: authentication settings if your cluster is locked down
-
 
   redis:
     image: redis:6.2.13-alpine
@@ -81,7 +67,7 @@ services:
       - redis-data:/data
 
   flink-jobmanager:
-    image: flink:1.15.4-scala_2.12
+    image: flink:1.16.0
     container_name: flink-jobmanager
     restart: unless-stopped
     networks:
@@ -90,66 +76,46 @@ services:
       - "8081:8081"   # Flink UI
       - "9450:9450"   # Prometheus metrics
     depends_on:
-      - kafka        # start after Kafka container exists
+      - kafka
     command: ["jobmanager"]
     environment:
       FLINK_PROPERTIES: |
-        jobmanager.memory.process.size: 1024m
+        jobmanager.memory.process.size: 1600m
+        taskmanager.memory.process.size: 1728m
+        parallelism.default: 2
         metrics.reporters: prom
         metrics.reporter.prom.class: org.apache.flink.metrics.prometheus.PrometheusReporter
         metrics.reporter.prom.port: 9450
         metrics.reporter.prom.host: 0.0.0.0
         metrics.reporter.prom.interval: 10 SECONDS
     volumes:
-      - ./flink-jobs/lib:/opt/flink/usrlib
-
+      - ./flink-jobs/lib:/opt/flink/usrlib:ro
+      - ./models:/opt/flink/models:ro
+      - ./flink-conf.yaml:/opt/flink/conf/flink-conf.yaml:ro
 
   flink-taskmanager:
-    image: flink:1.15.4-scala_2.12
+    image: flink:1.16.0
     container_name: flink-taskmanager
     restart: unless-stopped
     networks:
       - clickstream-net
-    ports:
-      - "9069:9069"   # taskmanager RPC port (optional)
     depends_on:
       - flink-jobmanager
     command: ["taskmanager"]
     environment:
       FLINK_PROPERTIES: |
-        jobmanager.memory.process.size: 1024m
+        jobmanager.rpc.address: flink-jobmanager
+        taskmanager.memory.process.size: 1728m
+        taskmanager.numberOfTaskSlots: 2
         metrics.reporters: prom
         metrics.reporter.prom.class: org.apache.flink.metrics.prometheus.PrometheusReporter
         metrics.reporter.prom.port: 9450
         metrics.reporter.prom.host: 0.0.0.0
         metrics.reporter.prom.interval: 10 SECONDS
     volumes:
-      - ./flink-jobs/lib:/opt/flink/usrlib
-
-
-
-  airflow:
-    image: apache/airflow:2.5.1
-    container_name: airflow
-    restart: unless-stopped
-    networks:
-      - clickstream-net
-    ports:
-      - "8080:8080"
-    command: ["airflow", "standalone"]
-    environment:
-      AIRFLOW__CORE__FERNET_KEY: "gJ8v0Og-6Zx5rV1sAhGvFq7lPAwX8I6foXU92L2J6ZI="
-      AIRFLOW__CORE__AUTH_MANAGER: 'airflow.www.fab_security.manager.SimpleAuthManager'
-      AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_USERS: 'admin:Admin'
-      _PIP_ADDITIONAL_REQUIREMENTS: "apache-airflow-providers-postgres redis statsd"
-      AIRFLOW__METRICS__STATSD_ON: "True"
-      AIRFLOW__METRICS__STATSD_HOST: "statsd-exporter"
-      AIRFLOW__METRICS__STATSD_PORT: "9125"
-      AIRFLOW__METRICS__STATSD_PREFIX: "airflow"
-    volumes:
-      - /Users/spartan/Downloads/clickstream-demo/dags:/opt/airflow/dags
-      - /Users/spartan/Downloads/clickstream-demo:/opt/clickstream-demo
-
+      - ./flink-jobs/lib:/opt/flink/usrlib:ro
+      - ./models:/opt/flink/models:ro
+      - ./flink-conf.yaml:/opt/flink/conf/flink-conf.yaml:ro
 
   prometheus:
     image: prom/prometheus:v2.41.0
@@ -163,6 +129,13 @@ services:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
       - prometheus-data:/prometheus
       - ./prometheus/alert_rules.yml:/etc/prometheus/alert_rules.yml
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
 
   grafana:
     image: grafana/grafana:9.5.0
@@ -172,8 +145,12 @@ services:
       - clickstream-net
     ports:
       - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
     volumes:
       - grafana-data:/var/lib/grafana
+      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./grafana/datasources:/etc/grafana/provisioning/datasources
 
   alertmanager:
     image: prom/alertmanager:latest
@@ -187,44 +164,23 @@ services:
       - ./alertmanager/config.yml:/etc/alertmanager/config.yml
     command:
       - '--config.file=/etc/alertmanager/config.yml'
+      - '--storage.path=/alertmanager'
+      - '--web.external-url=http://localhost:9093'
 
-
-    # Redis Exporter
-  redis-exporter:
-    image: oliver006/redis_exporter:latest
-    container_name: redis-exporter
+  # Network Flow Data Generator (simulate network traffic)
+  network-flow-generator:
+    build:
+      context: .
+      dockerfile: Dockerfile.producer
+    container_name: network-flow-generator
     restart: unless-stopped
     networks:
       - clickstream-net
-    ports:
-      - "9121:9121"
+    depends_on:
+      - kafka
     environment:
-      - REDIS_ADDR=redis:6379
-
-  # Kafka JMX Exporter (requires JMX on Kafka; using bitnami’s image)
-  kafka-exporter:
-    image: bitnami/kafka-exporter:latest
-    container_name: kafka-exporter
-    restart: unless-stopped
-    networks:
-      - clickstream-net
-    ports:
-      - "9308:9308"
-    environment:
-      - KAFKA_ENABLED_METRICS=all
-      - KAFKA_JMX_PROMETHEUS_PORT=9308
-      - KAFKA_JMX_PORT=9999
-      - KAFKA_BROKER_LIST=kafka:9092
-
-  # Airflow metrics via statsd → Prometheus exporter
-  statsd-exporter:
-    image: prom/statsd-exporter:latest
-    container_name: statsd-exporter
-    restart: unless-stopped
-    networks:
-      - clickstream-net
-    ports:
-      - "9125:9125/udp"  # UDP intake from Airflow
-      - "9102:9102"      # Prometheus scrape
-
-
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - FLOW_RATE=50
+      - ATTACK_RATIO=0.15
+    volumes:
+      - ./scripts:/app/scripts
