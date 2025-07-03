@@ -56,64 +56,6 @@ public class NetworkIntrusionDetectionJob {
         env.execute("Network Intrusion Detection with TabNet");
     }
 
-    // NetworkFlow class definition
-    public static class NetworkFlow {
-        public int destinationPort;
-        public long flowDuration;
-        public int totalFwdPackets;
-        public long totalLengthOfFwdPackets;
-        public int fwdPacketLengthMax;
-        public int fwdPacketLengthMin;
-        public double fwdPacketLengthMean;
-        public double fwdPacketLengthStd;
-        public int bwdPacketLengthMax;
-        public int bwdPacketLengthMin;
-        public double bwdPacketLengthMean;
-        public double bwdPacketLengthStd;
-        public double flowBytesPerS;
-        public double flowPacketsPerS;
-        public double flowIATMean;
-        public double flowIATStd;
-        public long flowIATMax;
-        public long flowIATMin;
-        public long fwdIATTotal;
-        public double fwdIATMean;
-        public double fwdIATStd;
-        public long fwdIATMax;
-        public long fwdIATMin;
-        public long bwdIATTotal;
-        public double bwdIATMean;
-        public double bwdIATStd;
-        public long bwdIATMax;
-        public long bwdIATMin;
-        public long fwdHeaderLength;
-        public long bwdHeaderLength;
-        public double fwdPacketsPerS;
-        public double bwdPacketsPerS;
-        public int minPacketLength;
-        public int maxPacketLength;
-        public double packetLengthMean;
-        public double packetLengthStd;
-        public double packetLengthVariance;
-        public int finFlagCount;
-        public int pshFlagCount;
-        public int ackFlagCount;
-        public double averagePacketSize;
-        public long subflowFwdBytes;
-        public long initWinBytesForward;
-        public long initWinBytesBackward;
-        public int actDataPktFwd;
-        public long minSegSizeForward;
-        public double activeMean;
-        public long activeMax;
-        public long activeMin;
-        public double idleMean;
-        public long idleMax;
-        public long idleMin;
-        public String sourceIP;
-        public String destinationIP;
-    }
-
     // StandardScaler class definition
     public static class StandardScaler {
         private float[] means;

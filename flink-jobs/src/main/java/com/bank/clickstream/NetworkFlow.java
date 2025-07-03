@@ -5,8 +5,8 @@ public class NetworkFlow {
     public int destinationPort; // 0
     public long flowDuration; // 1
     public int totalFwdPackets; // 2
-    public long totalLengthOfFwdPackets;  // 3
-    public int fwdPacketLengthMax;        // 4
+    public long totalLengthOfFwdPackets; // 3
+    public int fwdPacketLengthMax; // 4
     public int fwdPacketLengthMin; // 5
     public double fwdPacketLengthMean; // 6
     public double fwdPacketLengthStd; // 7
@@ -41,8 +41,8 @@ public class NetworkFlow {
     public double packetLengthVariance; // 36
     public int finFlagCount; // 37
     public int pshFlagCount; // 38
-    public int ackFlagCount;              // 39
-    public double averagePacketSize;      // 40
+    public int ackFlagCount; // 39
+    public double averagePacketSize; // 40
     public long subflowFwdBytes; // 41
     public long initWinBytesForward; // 42
     public long initWinBytesBackward; // 43
@@ -55,7 +55,12 @@ public class NetworkFlow {
     public long idleMax; // 50
     public long idleMin; // 51
 
-    // Additional context fields (not part of model features)
+    // Additional fields for context (not part of model features)
     public String sourceIP;
     public String destinationIP;
+
+    // Default constructor
+    public NetworkFlow() {
+        // Initialize with default values
+    }
 }
