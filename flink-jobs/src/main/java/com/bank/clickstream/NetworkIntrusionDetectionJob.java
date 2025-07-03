@@ -64,8 +64,8 @@ public class NetworkIntrusionDetectionJob {
         public StandardScaler() {
             // Initialize with default values - replace with your actual scaler parameters
             this.means = new float[52]; // Initialize with your actual means
-            this.stds = new float[52];  // Initialize with your actual standard deviations
-            
+            this.stds = new float[52]; // Initialize with your actual standard deviations
+
             // Fill with default values (you should replace these with actual values)
             for (int i = 0; i < 52; i++) {
                 means[i] = 0.0f;
@@ -88,7 +88,8 @@ public class NetworkIntrusionDetectionJob {
 
         public LabelEncoder() {
             // Initialize with attack type labels
-            this.labels = new String[]{"Bots", "Brute Force", "DDoS", "DoS", "Normal Traffic", "Port Scanning", "Web Attacks"};
+            this.labels = new String[] { "Bots", "Brute Force", "DDoS", "DoS", "Normal Traffic", "Port Scanning",
+                    "Web Attacks" };
         }
 
         public String indexToLabel(int index) {
