@@ -76,7 +76,7 @@ public class NetworkIntrusionDetectionJob {
         public float[] transform(float[] features) {
             float[] scaled = new float[features.length];
             for (int i = 0; i < features.length; i++) {
-                scaled[i] = (features[i] - means[i]) / stds[i];
+                scaled[i] = (stds[i] != 0.0f) ? (features[i] - means[i]) / stds[i] : features[i] - means[i];
             }
             return scaled;
         }
@@ -97,6 +97,67 @@ public class NetworkIntrusionDetectionJob {
             }
             return "Unknown";
         }
+    }
+
+    // NetworkFlow POJO class definition (FIX: Add this, it's missing!)
+    public static class NetworkFlow {
+        // All features as per parseNetworkFlow
+        public int destinationPort;
+        public long flowDuration;
+        public int totalFwdPackets;
+        public long totalLengthOfFwdPackets;
+        public int fwdPacketLengthMax;
+        public int fwdPacketLengthMin;
+        public double fwdPacketLengthMean;
+        public double fwdPacketLengthStd;
+        public int bwdPacketLengthMax;
+        public int bwdPacketLengthMin;
+        public double bwdPacketLengthMean;
+        public double bwdPacketLengthStd;
+        public double flowBytesPerS;
+        public double flowPacketsPerS;
+        public double flowIATMean;
+        public double flowIATStd;
+        public long flowIATMax;
+        public long flowIATMin;
+        public long fwdIATTotal;
+        public double fwdIATMean;
+        public double fwdIATStd;
+        public long fwdIATMax;
+        public long fwdIATMin;
+        public long bwdIATTotal;
+        public double bwdIATMean;
+        public double bwdIATStd;
+        public long bwdIATMax;
+        public long bwdIATMin;
+        public long fwdHeaderLength;
+        public long bwdHeaderLength;
+        public double fwdPacketsPerS;
+        public double bwdPacketsPerS;
+        public int minPacketLength;
+        public int maxPacketLength;
+        public double packetLengthMean;
+        public double packetLengthStd;
+        public double packetLengthVariance;
+        public int finFlagCount;
+        public int pshFlagCount;
+        public int ackFlagCount;
+        public double averagePacketSize;
+        public long subflowFwdBytes;
+        public long initWinBytesForward;
+        public long initWinBytesBackward;
+        public int actDataPktFwd;
+        public long minSegSizeForward;
+        public double activeMean;
+        public long activeMax;
+        public long activeMin;
+        public double idleMean;
+        public long idleMax;
+        public long idleMin;
+
+        // Additional fields for context
+        public String sourceIP;
+        public String destinationIP;
     }
 
     public static class NetworkIntrusionDetectionFunction extends RichMapFunction<String, String> {
